@@ -16,6 +16,15 @@
           </el-button>
           <el-button
             size="small"
+            type="primary"
+            :icon="Upload"
+            plain
+            @click="handleImport"
+          >
+            导入
+          </el-button>
+          <el-button
+            size="small"
             type="danger"
             :icon="Delete"
             plain
@@ -81,8 +90,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { ArrowUp, ArrowDown, Delete, Download } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, Delete, Download, Upload } from '@element-plus/icons-vue'
 import { useTranslationStore } from '@/stores/translation'
+import type { ProperNoun } from '@/types'
 
 const visible = ref(true)
 
@@ -143,6 +153,47 @@ function handleDownload() {
   URL.revokeObjectURL(url)
   
   ElMessage.success('索引已导出')
+}
+
+function handleImport() {
+  // 创建文件输入元素
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  
+  input.onchange = async (e: Event) => {
+    const target = e.target as HTMLInputElement
+    const file = target.files?.[0]
+    
+    if (!file) return
+    
+    try {
+      const text = await file.text()
+      const imported = JSON.parse(text) as ProperNoun
+      
+      // 验证格式
+      if (typeof imported !== 'object' || imported === null) {
+        throw new Error('无效的JSON格式')
+      }
+      
+      // 验证是否为术语索引格式（键值对都是字符串）
+      for (const [key, value] of Object.entries(imported)) {
+        if (typeof key !== 'string' || typeof value !== 'string') {
+          throw new Error('术语索引格式错误')
+        }
+      }
+      
+      // 导入术语
+      store.importProperNouns(imported)
+      
+      ElMessage.success(`成功导入 ${Object.keys(imported).length} 个术语`)
+    } catch (error) {
+      console.error('导入术语索引失败:', error)
+      ElMessage.error('导入失败：' + (error instanceof Error ? error.message : '文件格式错误'))
+    }
+  }
+  
+  input.click()
 }
 
 function handleClear() {

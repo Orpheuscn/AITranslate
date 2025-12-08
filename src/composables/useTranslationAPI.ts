@@ -61,6 +61,33 @@ export function useTranslationAPI() {
     return newTerms
   }
 
+  // 从累积术语索引中筛选出当前文本中出现的术语
+  function filterRelevantTerms(text: string, allTerms: ProperNoun): ProperNoun {
+    const relevantTerms: ProperNoun = {}
+    
+    // 遍历所有术语，检查是否在当前文本中出现
+    Object.entries(allTerms).forEach(([original, translation]) => {
+      if (text.includes(original)) {
+        relevantTerms[original] = translation
+      }
+    })
+    
+    return relevantTerms
+  }
+
+  // 将术语索引格式化为文本，用于发送给API
+  function formatTermsForPrompt(terms: ProperNoun): string {
+    if (Object.keys(terms).length === 0) {
+      return ''
+    }
+    
+    const termsList = Object.entries(terms)
+      .map(([original, translation]) => `${original}: ${translation}`)
+      .join('\n')
+    
+    return `\n\n### 已知术语表（请在翻译时参考以下术语的翻译）：\n${termsList}`
+  }
+
   // 更新进度
   function updateProgress(current: number, total: number) {
     store.updateProgress(current, total)
@@ -123,10 +150,22 @@ export function useTranslationAPI() {
 
       const prompt = needTranslation.map((s, i) => `[${i + 1}] ${s.text}`).join('\n\n')
 
+      // 筛选当前批次相关的术语
+      const batchText = needTranslation.map(s => s.text).join(' ')
+      console.log(`\n=== 批次 ${batchIndex + 1} 术语筛选 ===`)
+      console.log('当前累积术语总数:', Object.keys(store.accumulatedTerms).length)
+      console.log('完整累积术语索引:', JSON.stringify(store.accumulatedTerms, null, 2))
+      
+      const relevantTerms = filterRelevantTerms(batchText, store.accumulatedTerms)
+      console.log('筛选出的相关术语数量:', Object.keys(relevantTerms).length)
+      console.log('筛选出的相关术语:', JSON.stringify(relevantTerms, null, 2))
+      
+      const termsPrompt = formatTermsForPrompt(relevantTerms)
+
       try {
         const result = await callDeepSeekAPI([
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `请将以下 ${needTranslation.length} 个句子翻译成中文，保留索引标记：\n\n${prompt}` }
+          { role: 'user', content: `请将以下 ${needTranslation.length} 个句子翻译成中文，保留索引标记：\n\n${prompt}${termsPrompt}` }
         ], apiKey, model)
 
         // 分离翻译和专有名词
@@ -157,9 +196,16 @@ export function useTranslationAPI() {
         // 更新专有名词
         if (properNounPart) {
           const newTerms = parseProperNouns(properNounPart)
+          console.log(`批次 ${batchIndex + 1} 新识别的术语:`, JSON.stringify(newTerms, null, 2))
+          
+          // 同时更新到properNouns（显示用）和accumulatedTerms（批次间传递用）
           Object.entries(newTerms).forEach(([original, translation]) => {
             store.updateProperNoun(original, translation)
           })
+          store.mergeAccumulatedTerms(newTerms)
+          
+          console.log('合并后的累积术语索引:', JSON.stringify(store.accumulatedTerms, null, 2))
+          console.log('=== 批次处理完成 ===\n')
         }
 
         await new Promise(resolve => setTimeout(resolve, 300))
@@ -209,6 +255,8 @@ export function useTranslationAPI() {
     translateBatch,
     retranslateSentence,
     parseProperNouns,
+    filterRelevantTerms,
+    formatTermsForPrompt,
     updateProgress
   }
 }

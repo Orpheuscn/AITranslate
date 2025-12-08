@@ -7,6 +7,7 @@ export const useTranslationStore = defineStore('translation', () => {
   const sourceSentences = ref<Sentence[]>([])
   const targetSentences = ref<Sentence[]>([])
   const properNouns = ref<ProperNoun>({})
+  const accumulatedTerms = ref<ProperNoun>({}) // 批次间累积的术语索引
   const settings = ref<TranslationSettings>({
     apiKey: localStorage.getItem('deepseek_api_key') || '',
     model: 'deepseek-chat',
@@ -38,6 +39,9 @@ export const useTranslationStore = defineStore('translation', () => {
     sourceSentences.value = sentences
     targetSentences.value = []
     permanentHighlightIndex.value = -1
+    // 开始新翻译任务时，将localStorage中的术语索引加载到累积术语中
+    accumulatedTerms.value = { ...properNouns.value }
+    console.log('开始新翻译任务，初始化累积术语:', JSON.stringify(accumulatedTerms.value, null, 2))
   }
 
   function setTargetSentences(sentences: Sentence[]) {
@@ -105,6 +109,28 @@ export const useTranslationStore = defineStore('translation', () => {
     localStorage.removeItem('properNounIndex')
   }
 
+  function importProperNouns(imported: ProperNoun) {
+    // 合并导入的术语到现有的术语索引中
+    properNouns.value = { ...properNouns.value, ...imported }
+    saveProperNouns()
+    
+    // 同时也合并到累积术语中，这样在当前翻译会话中也能使用
+    accumulatedTerms.value = { ...accumulatedTerms.value, ...imported }
+    
+    console.log('导入术语索引:', JSON.stringify(imported, null, 2))
+    console.log('当前完整术语索引:', JSON.stringify(properNouns.value, null, 2))
+    console.log('当前累积术语索引:', JSON.stringify(accumulatedTerms.value, null, 2))
+  }
+
+  function mergeAccumulatedTerms(newTerms: ProperNoun) {
+    // 将新术语合并到累积术语中
+    accumulatedTerms.value = { ...accumulatedTerms.value, ...newTerms }
+  }
+
+  function clearAccumulatedTerms() {
+    accumulatedTerms.value = {}
+  }
+
   function retryMissingTranslations() {
     const missingIndices = targetSentences.value
       .map((sentence, index) => sentence.isMissing ? index : -1)
@@ -121,6 +147,7 @@ export const useTranslationStore = defineStore('translation', () => {
     sourceSentences,
     targetSentences,
     properNouns,
+    accumulatedTerms,
     settings,
     translationState,
     highlightedIndex,
@@ -145,6 +172,9 @@ export const useTranslationStore = defineStore('translation', () => {
     updateProperNoun,
     removeProperNoun,
     clearProperNouns,
+    importProperNouns,
+    mergeAccumulatedTerms,
+    clearAccumulatedTerms,
     retryMissingTranslations
   }
 })

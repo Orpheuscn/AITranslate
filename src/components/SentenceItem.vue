@@ -23,7 +23,7 @@
     </span>
     
     <!-- 显示模式 -->
-    <span v-if="!isEditing" class="sentence-text">{{ sentence.text }}</span>
+    <span v-if="!isEditing" class="sentence-text" v-html="highlightedText"></span>
     
     <!-- 编辑模式 -->
     <span v-else class="sentence-edit">
@@ -82,8 +82,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, computed } from 'vue'
 import { RefreshRight, Edit, Check, Close } from '@element-plus/icons-vue'
+import { useTranslationStore } from '@/stores/translation'
 import type { Sentence } from '@/types'
 
 interface Props {
@@ -110,6 +111,70 @@ const isEditing = ref(false)
 const editText = ref('')
 const editInputRef = ref()
 const sentenceRef = ref<HTMLElement>()
+const store = useTranslationStore()
+
+// 转义HTML特殊字符
+function escapeHtml(text: string): string {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
+
+// 生成高亮后的文本
+const highlightedText = computed(() => {
+  let text = props.sentence.text
+  const terms = Object.keys(store.properNouns)
+  
+  if (terms.length === 0) {
+    return escapeHtml(text)
+  }
+  
+  // 按长度从长到短排序，避免短词匹配覆盖长词
+  const sortedTerms = [...terms].sort((a, b) => b.length - a.length)
+  
+  // 创建替换映射
+  const replacements: { start: number; end: number; term: string }[] = []
+  
+  sortedTerms.forEach(term => {
+    let index = 0
+    while ((index = text.indexOf(term, index)) !== -1) {
+      // 检查是否与已有的替换区域重叠
+      const overlaps = replacements.some(
+        r => (index >= r.start && index < r.end) || (index + term.length > r.start && index + term.length <= r.end)
+      )
+      
+      if (!overlaps) {
+        replacements.push({
+          start: index,
+          end: index + term.length,
+          term: term
+        })
+      }
+      
+      index += term.length
+    }
+  })
+  
+  // 按位置排序
+  replacements.sort((a, b) => a.start - b.start)
+  
+  // 构建最终的HTML
+  let result = ''
+  let lastIndex = 0
+  
+  replacements.forEach(r => {
+    // 添加未高亮的部分
+    result += escapeHtml(text.substring(lastIndex, r.start))
+    // 添加高亮的术语（使用CSS类，颜色由CSS控制）
+    result += `<span class="term-highlight">${escapeHtml(r.term)}</span>`
+    lastIndex = r.end
+  })
+  
+  // 添加剩余的文本
+  result += escapeHtml(text.substring(lastIndex))
+  
+  return result
+})
 
 // 监听高亮状态变化，自动滚动到可见区域（仅在容器内滚动）
 watch(() => props.isHighlighted, (newVal) => {
@@ -247,6 +312,32 @@ function cancelEdit() {
 
 .sentence-text {
   font-size: 14px;
+}
+
+/* 术语高亮样式 - 亮色模式 */
+.sentence-text :deep(.term-highlight) {
+  background-color: #B4E7CE;
+  color: #1a5a3a;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sentence-text :deep(.term-highlight:hover) {
+  background-color: #9dd9bb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* 术语高亮样式 - 暗色模式 */
+html.dark .sentence-text :deep(.term-highlight) {
+  background-color: #2a5a4a;
+  color: #a0e7c4;
+}
+
+html.dark .sentence-text :deep(.term-highlight:hover) {
+  background-color: #356b58;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .sentence-edit {
