@@ -176,8 +176,8 @@ const highlightedText = computed(() => {
   return result
 })
 
-// 监听高亮状态变化，自动滚动到可见区域（仅在容器内滚动）
-watch(() => props.isHighlighted, (newVal) => {
+// 监听永久高亮状态变化（点击），自动滚动到可见区域（仅在容器内滚动）
+watch(() => props.isPermanentHighlighted, (newVal) => {
   if (newVal && sentenceRef.value) {
     nextTick(() => {
       // 找到滚动容器（.text-content）
