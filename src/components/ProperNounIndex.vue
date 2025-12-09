@@ -6,6 +6,15 @@
         <div class="header-actions">
           <el-button
             size="small"
+            type="primary"
+            :icon="Upload"
+            plain
+            @click="handleImport"
+          >
+            导入
+          </el-button>
+          <el-button
+            size="small"
             type="success"
             :icon="Download"
             plain
@@ -13,15 +22,6 @@
             :disabled="Object.keys(store.properNouns).length === 0"
           >
             下载
-          </el-button>
-          <el-button
-            size="small"
-            type="primary"
-            :icon="Upload"
-            plain
-            @click="handleImport"
-          >
-            导入
           </el-button>
           <el-button
             size="small"

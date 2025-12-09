@@ -8,6 +8,9 @@
     <!-- API设置 -->
     <ApiSettings />
 
+    <!-- 自定义提示词 -->
+    <CustomPrompt />
+
     <!-- 错误提示 -->
     <el-alert
       v-if="errorMessage"
@@ -57,6 +60,7 @@ import { useTranslationStore } from '@/stores/translation'
 import { useTextProcessing } from '@/composables/useTextProcessing'
 import { useTranslationAPI } from '@/composables/useTranslationAPI'
 import ApiSettings from '@/components/ApiSettings.vue'
+import CustomPrompt from '@/components/CustomPrompt.vue'
 import ProperNounIndex from '@/components/ProperNounIndex.vue'
 import TextColumn from '@/components/TextColumn.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'

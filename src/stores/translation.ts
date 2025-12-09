@@ -13,6 +13,7 @@ export const useTranslationStore = defineStore('translation', () => {
     model: 'deepseek-chat',
     batchSize: 10
   })
+  const customPrompt = ref<string>(localStorage.getItem('custom_prompt') || '')
   
   const translationState = ref<TranslationState>({
     isTranslating: false,
@@ -131,6 +132,15 @@ export const useTranslationStore = defineStore('translation', () => {
     accumulatedTerms.value = {}
   }
 
+  function setCustomPrompt(prompt: string) {
+    customPrompt.value = prompt
+    if (prompt) {
+      localStorage.setItem('custom_prompt', prompt)
+    } else {
+      localStorage.removeItem('custom_prompt')
+    }
+  }
+
   function retryMissingTranslations() {
     const missingIndices = targetSentences.value
       .map((sentence, index) => sentence.isMissing ? index : -1)
@@ -148,6 +158,7 @@ export const useTranslationStore = defineStore('translation', () => {
     targetSentences,
     properNouns,
     accumulatedTerms,
+    customPrompt,
     settings,
     translationState,
     highlightedIndex,
@@ -175,6 +186,7 @@ export const useTranslationStore = defineStore('translation', () => {
     importProperNouns,
     mergeAccumulatedTerms,
     clearAccumulatedTerms,
+    setCustomPrompt,
     retryMissingTranslations
   }
 })

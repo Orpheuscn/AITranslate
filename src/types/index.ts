@@ -17,6 +17,7 @@ export interface TranslationSettings {
   apiKey: string
   model: 'deepseek-chat' | 'deepseek-coder'
   batchSize: 10 | 20 | 30 | 50
+  sentenceRange?: string // 例如: "69.1-79.4"
 }
 
 export interface TranslationProgress {
