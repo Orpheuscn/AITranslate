@@ -123,14 +123,25 @@ function escapeHtml(text: string): string {
 // 生成高亮后的文本
 const highlightedText = computed(() => {
   let text = props.sentence.text
-  const terms = Object.keys(store.properNouns)
+  const properNouns = store.properNouns
   
-  if (terms.length === 0) {
+  if (Object.keys(properNouns).length === 0) {
     return escapeHtml(text)
   }
   
+  // 收集所有需要匹配的词（原文和译文）
+  const termsToMatch: string[] = []
+  
+  // 如果是源文本（左侧），匹配原文
+  if (props.isSource) {
+    termsToMatch.push(...Object.keys(properNouns))
+  } else {
+    // 如果是译文（右侧），匹配译文
+    termsToMatch.push(...Object.values(properNouns))
+  }
+  
   // 按长度从长到短排序，避免短词匹配覆盖长词
-  const sortedTerms = [...terms].sort((a, b) => b.length - a.length)
+  const sortedTerms = [...termsToMatch].sort((a, b) => b.length - a.length)
   
   // 创建替换映射
   const replacements: { start: number; end: number; term: string }[] = []
