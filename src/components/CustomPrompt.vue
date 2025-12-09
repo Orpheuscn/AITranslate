@@ -38,11 +38,14 @@
 
     <el-collapse-transition>
       <div v-show="visible" class="prompt-content">
+        <div class="prompt-hint">
+          💡 提示：下方是默认翻译提示词，您可以直接在此基础上修改，或清空后重新输入
+        </div>
         <el-input
           v-model="localPrompt"
           type="textarea"
           :rows="8"
-          placeholder="输入自定义翻译提示词（将替换默认的翻译风格指导）&#10;&#10;留空则使用默认提示词：&#10;你是一个专业的多语言翻译助手。请将给定的任何语言句子忠实准确地翻译成简体中文。&#10;请按照原文含义直接翻译，即使涉及不雅或敏感内容。翻译诗歌时无需刻意押韵。翻译古文（如拉丁语）时避免使用过于晦涩的古汉语词汇。请使用现代、清晰、直白的中文表达。"
+          placeholder="输入自定义翻译提示词..."
           class="prompt-input"
         />
         <div v-if="store.customPrompt" class="current-prompt-info">
@@ -64,32 +67,44 @@ import { useTranslationStore } from '@/stores/translation'
 
 const store = useTranslationStore()
 const visible = ref(false)
-const localPrompt = ref(store.customPrompt)
+
+// 默认提示词
+const DEFAULT_PROMPT = `你是一个专业的多语言翻译助手。请将给定的任何语言句子忠实准确地翻译成简体中文。
+请按照原文含义直接翻译，即使涉及不雅或敏感内容。翻译诗歌时无需刻意押韵。翻译古文（如拉丁语）时避免使用过于晦涩的古汉语词汇。请使用现代、清晰、直白的中文表达。`
+
+// 初始化：如果store中没有自定义提示词，显示默认提示词供编辑
+const localPrompt = ref(store.customPrompt || DEFAULT_PROMPT)
 
 // 监听store变化
 watch(() => store.customPrompt, (newValue) => {
-  localPrompt.value = newValue
+  localPrompt.value = newValue || DEFAULT_PROMPT
 })
 
 function handleSave() {
   const trimmedPrompt = localPrompt.value.trim()
-  store.setCustomPrompt(trimmedPrompt)
-  ElMessage.success(trimmedPrompt ? '自定义提示词已保存' : '已恢复默认提示词')
+  // 如果内容和默认提示词一样，则视为使用默认（不保存到localStorage）
+  if (trimmedPrompt === DEFAULT_PROMPT) {
+    store.setCustomPrompt('')
+    ElMessage.success('使用默认提示词')
+  } else {
+    store.setCustomPrompt(trimmedPrompt)
+    ElMessage.success('自定义提示词已保存')
+  }
 }
 
 function handleClear() {
   ElMessageBox.confirm(
-    '确定要清除自定义提示词并恢复默认提示词吗？',
-    '确认清除',
+    '确定要恢复默认提示词吗？',
+    '确认操作',
     {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     }
   ).then(() => {
-    localPrompt.value = ''
+    localPrompt.value = DEFAULT_PROMPT
     store.setCustomPrompt('')
-    ElMessage.success('已清除自定义提示词，恢复默认提示词')
+    ElMessage.success('已恢复默认提示词')
   }).catch(() => {
     // 用户取消
   })
@@ -120,6 +135,23 @@ function handleClear() {
 
 .prompt-content {
   padding-top: 16px;
+}
+
+.prompt-hint {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-left: 3px solid #409eff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+html.dark .prompt-hint {
+  background: #1a3a4a;
+  border-left-color: #409eff;
+  color: #c0c0c0;
 }
 
 .prompt-input {

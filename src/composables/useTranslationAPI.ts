@@ -46,36 +46,82 @@ export function useTranslationAPI() {
     const lines = properNounText.split('\n')
 
     lines.forEach((line: string) => {
-      // 只在第一个冒号处分割，避免书名等内容中的冒号被错误处理
-      const colonIndex = line.indexOf(':')
-      if (colonIndex !== -1) {
-        let original = line.substring(0, colonIndex).trim()
-        let translation = line.substring(colonIndex + 1).trim()
+      const trimmedLine = line.trim()
+      if (!trimmedLine) return
+
+      console.log('解析原始行:', trimmedLine)
+
+      // 只在第一个冒号处分割
+      const firstColonIndex = trimmedLine.indexOf(':')
+      if (firstColonIndex === -1) return
+
+      let original = trimmedLine.substring(0, firstColonIndex).trim()
+      let afterFirstColon = trimmedLine.substring(firstColonIndex + 1).trim()
+
+      console.log('  第一次分割 - 原文:', original)
+      console.log('  第一次分割 - 后续:', afterFirstColon)
+
+      // 策略1: 如果后续内容包含中文书名号《》，提取书名号内容作为翻译
+      const bookTitleMatch = afterFirstColon.match(/《([^》]+)》/)
+      if (bookTitleMatch) {
+        const translation = `《${bookTitleMatch[1]}》`
         
-        // 如果translation部分包含中文书名号，提取书名号中的内容
-        const bookTitleMatch = translation.match(/《([^》]+)》/)
-        if (bookTitleMatch) {
-          translation = `《${bookTitleMatch[1]}》`
-        }
-        
-        // 如果original部分看起来像是副标题（包含在translation的英文部分），使用完整标题
-        // 例如: "Fashioning China: Precarious Creativity..." 应该提取完整的英文标题
-        if (translation.includes(':')) {
-          const fullEnglishMatch = translation.match(/^(.+?):\s*《/)
-          if (fullEnglishMatch) {
-            // 使用original + 英文副标题作为完整的原文
-            original = `${original}: ${fullEnglishMatch[1]}`
-            // 重新提取中文翻译
-            const chineseMatch = translation.match(/《([^》]+)》/)
-            if (chineseMatch) {
-              translation = `《${chineseMatch[1]}》`
-            }
+        // 检查是否需要扩展原文（如果书名号前还有英文内容）
+        const beforeBookTitle = afterFirstColon.substring(0, afterFirstColon.indexOf('《')).trim()
+        if (beforeBookTitle) {
+          // 移除末尾的冒号
+          const cleanBeforeTitle = beforeBookTitle.replace(/:$/, '').trim()
+          if (cleanBeforeTitle) {
+            original = `${original}: ${cleanBeforeTitle}`
           }
         }
         
-        // 自动查重：只添加不存在的词条
+        console.log('  使用书名号提取 - 最终原文:', original)
+        console.log('  使用书名号提取 - 最终译文:', translation)
+        
         if (original && translation && !store.properNouns[original]) {
           newTerms[original] = translation
+        }
+        return
+      }
+
+      // 策略2: 如果没有书名号，尝试找到最后一个冒号后的中文内容
+      const lastColonIndex = afterFirstColon.lastIndexOf(':')
+      if (lastColonIndex !== -1) {
+        const possibleTranslation = afterFirstColon.substring(lastColonIndex + 1).trim()
+        
+        // 检查是否包含中文
+        const hasChinese = /[\u4e00-\u9fa5]/.test(possibleTranslation)
+        if (hasChinese) {
+          // 提取最后冒号前的英文部分（如果有）作为完整原文
+          const englishPart = afterFirstColon.substring(0, lastColonIndex).trim()
+          if (englishPart) {
+            original = `${original}: ${englishPart}`
+          }
+          
+          console.log('  使用最后冒号提取 - 最终原文:', original)
+          console.log('  使用最后冒号提取 - 最终译文:', possibleTranslation)
+          
+          if (original && possibleTranslation && !store.properNouns[original]) {
+            newTerms[original] = possibleTranslation
+          }
+          return
+        }
+      }
+
+      // 策略3: 如果上面都不适用，检查afterFirstColon是否直接就是中文翻译
+      const hasChinese = /[\u4e00-\u9fa5]/.test(afterFirstColon)
+      if (hasChinese) {
+        // 移除可能的英文前缀，只保留中文部分
+        const chineseMatch = afterFirstColon.match(/[\u4e00-\u9fa5《》：、，。！？；""''（）]+/)
+        if (chineseMatch) {
+          const translation = chineseMatch[0].trim()
+          console.log('  直接提取中文 - 最终原文:', original)
+          console.log('  直接提取中文 - 最终译文:', translation)
+          
+          if (original && translation && !store.properNouns[original]) {
+            newTerms[original] = translation
+          }
         }
       }
     })
@@ -133,15 +179,23 @@ export function useTranslationAPI() {
 
     // 使用自定义提示词或默认提示词
     const translationStyle = store.customPrompt || defaultPrompt
+    const isCustom = !!store.customPrompt
+    
     console.log('=== 翻译配置 ===')
-    console.log('是否有自定义提示词:', !!store.customPrompt)
-    console.log('使用的提示词:', translationStyle.substring(0, 100) + '...')
+    console.log('是否有自定义提示词:', isCustom)
+    console.log('使用的提示词:', translationStyle)
     
     // 完整的系统提示词（翻译风格 + 格式要求）
-    const systemPrompt = `${translationStyle}
-请严格按照原始句子的顺序返回翻译结果，并保留每句前面的[数字]索引标记（例如：[1] 这是第一句的翻译）。
-翻译完成后，请另起一行，使用'### Proper Nouns:'作为标记，然后列出你在原文中识别出的专有名词（人名、地名、书名、组织名、特定术语等）及其对应的中文翻译，每行一个，格式为 '原文术语: 中文翻译'。如果没有识别到专有名词，则省略此部分。
-请确保翻译句子的数量与请求中的句子数量完全一致。`
+    const styleInstruction = isCustom 
+      ? `【重要】请严格遵循以下翻译要求：\n${translationStyle}\n\n`
+      : `${translationStyle}\n\n`
+    
+    const systemPrompt = `${styleInstruction}格式要求：
+1. 请严格按照原始句子的顺序返回翻译结果
+2. 保留每句前面的[数字]索引标记（例如：[1] 这是第一句的翻译）
+3. 翻译完成后，另起一行，使用'### Proper Nouns:'作为标记
+4. 列出专有名词（人名、地名、书名等）及其翻译，格式: '原文术语: 中文翻译'
+5. 确保翻译句子的数量与请求中的句子数量完全一致`
 
     // 初始化目标句子
     if (store.targetSentences.length !== sentences.length) {
@@ -275,9 +329,17 @@ export function useTranslationAPI() {
 
     // 使用自定义提示词或默认提示词
     const translationStyle = store.customPrompt || defaultPrompt
-    const systemPrompt = `${translationStyle}\n只返回翻译结果，不要包含任何解释、标记或句子索引。`
+    const isCustom = !!store.customPrompt
+    
+    const styleInstruction = isCustom 
+      ? `【重要】请严格遵循以下翻译要求：\n${translationStyle}\n\n`
+      : `${translationStyle}\n\n`
+    
+    const systemPrompt = `${styleInstruction}只返回翻译结果，不要包含任何解释、标记或句子索引。`
 
-    console.log('重译使用的提示词:', translationStyle.substring(0, 50) + '...')
+    console.log('=== 重译配置 ===')
+    console.log('是否有自定义提示词:', isCustom)
+    console.log('重译使用的提示词:', translationStyle)
 
     const result = await callDeepSeekAPI([
       { role: 'system', content: systemPrompt },
