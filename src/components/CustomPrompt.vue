@@ -38,9 +38,6 @@
 
     <el-collapse-transition>
       <div v-show="visible" class="prompt-content">
-        <div class="prompt-hint">
-          💡 提示：下方是默认翻译提示词，您可以直接在此基础上修改，或清空后重新输入
-        </div>
         <el-input
           v-model="localPrompt"
           type="textarea"

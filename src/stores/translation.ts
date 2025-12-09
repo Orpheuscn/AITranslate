@@ -11,7 +11,7 @@ export const useTranslationStore = defineStore('translation', () => {
   const settings = ref<TranslationSettings>({
     apiKey: localStorage.getItem('deepseek_api_key') || '',
     model: 'deepseek-chat',
-    batchSize: 10
+    batchSize: 50
   })
   const customPrompt = ref<string>(localStorage.getItem('custom_prompt') || '')
   
