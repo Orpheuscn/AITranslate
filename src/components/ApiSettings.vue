@@ -34,27 +34,17 @@
           </el-form-item>
           
           <el-form-item label="批量处理句子数">
-            <el-select v-model="localSettings.batchSize" @change="updateBatchSize">
-              <el-option :label="10" :value="10" />
-              <el-option :label="20" :value="20" />
-              <el-option :label="30" :value="30" />
-              <el-option :label="50" :value="50" />
-            </el-select>
-          </el-form-item>
-          
-          <el-form-item label="句子范围">
-            <el-input
-              v-model="localSettings.sentenceRange"
-              placeholder="例如: 69.1-79.4 (留空翻译全部)"
-              @change="updateSentenceRange"
-              clearable
-            >
-              <template #append>
-                <el-tooltip content="格式：段落.句子-段落.句子，例如 1.1-3.5 表示从第1段第1句到第3段第5句" placement="top">
-                  <el-icon><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </template>
-            </el-input>
+            <el-input-number
+              v-model="localSettings.batchSize"
+              :min="1"
+              :max="100"
+              :step="1"
+              @change="updateBatchSize"
+              controls-position="right"
+            />
+            <span style="margin-left: 8px; color: #909399; font-size: 12px;">
+              建议: 10-50句
+            </span>
           </el-form-item>
         </el-form>
       </div>
@@ -64,7 +54,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
-import { ArrowUp, ArrowDown, QuestionFilled } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useTranslationStore } from '@/stores/translation'
 import type { TranslationSettings } from '@/types'
 
@@ -74,8 +64,7 @@ const visible = ref(false)
 const localSettings = reactive<TranslationSettings>({
   apiKey: store.settings.apiKey,
   model: store.settings.model,
-  batchSize: store.settings.batchSize,
-  sentenceRange: store.settings.sentenceRange || ''
+  batchSize: store.settings.batchSize
 })
 
 // 监听store变化并同步到本地
@@ -91,12 +80,10 @@ function updateModel(value: 'deepseek-chat' | 'deepseek-coder') {
   store.updateSettings({ model: value })
 }
 
-function updateBatchSize(value: 10 | 20 | 30 | 50) {
-  store.updateSettings({ batchSize: value })
-}
-
-function updateSentenceRange(value: string) {
-  store.updateSettings({ sentenceRange: value || undefined })
+function updateBatchSize(value: number | undefined) {
+  if (value && value >= 1 && value <= 100) {
+    store.updateSettings({ batchSize: value })
+  }
 }
 </script>
 

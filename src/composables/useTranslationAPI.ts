@@ -49,8 +49,29 @@ export function useTranslationAPI() {
       // 只在第一个冒号处分割，避免书名等内容中的冒号被错误处理
       const colonIndex = line.indexOf(':')
       if (colonIndex !== -1) {
-        const original = line.substring(0, colonIndex).trim()
-        const translation = line.substring(colonIndex + 1).trim()
+        let original = line.substring(0, colonIndex).trim()
+        let translation = line.substring(colonIndex + 1).trim()
+        
+        // 如果translation部分包含中文书名号，提取书名号中的内容
+        const bookTitleMatch = translation.match(/《([^》]+)》/)
+        if (bookTitleMatch) {
+          translation = `《${bookTitleMatch[1]}》`
+        }
+        
+        // 如果original部分看起来像是副标题（包含在translation的英文部分），使用完整标题
+        // 例如: "Fashioning China: Precarious Creativity..." 应该提取完整的英文标题
+        if (translation.includes(':')) {
+          const fullEnglishMatch = translation.match(/^(.+?):\s*《/)
+          if (fullEnglishMatch) {
+            // 使用original + 英文副标题作为完整的原文
+            original = `${original}: ${fullEnglishMatch[1]}`
+            // 重新提取中文翻译
+            const chineseMatch = translation.match(/《([^》]+)》/)
+            if (chineseMatch) {
+              translation = `《${chineseMatch[1]}》`
+            }
+          }
+        }
         
         // 自动查重：只添加不存在的词条
         if (original && translation && !store.properNouns[original]) {
@@ -59,6 +80,7 @@ export function useTranslationAPI() {
       }
     })
 
+    console.log('解析后的新术语:', JSON.stringify(newTerms, null, 2))
     return newTerms
   }
 
@@ -89,49 +111,6 @@ export function useTranslationAPI() {
     return `\n\n### 已知术语表（请在翻译时参考以下术语的翻译）：\n${termsList}`
   }
 
-  // 解析句子范围 (格式: "69.1-79.4")
-  function parseSentenceRange(rangeStr: string): { start: { para: number; sent: number }, end: { para: number; sent: number } } | null {
-    if (!rangeStr || !rangeStr.trim()) {
-      return null
-    }
-    
-    const match = rangeStr.trim().match(/^(\d+)\.(\d+)\s*-\s*(\d+)\.(\d+)$/)
-    if (!match) {
-      return null
-    }
-    
-    return {
-      start: { para: parseInt(match[1]), sent: parseInt(match[2]) },
-      end: { para: parseInt(match[3]), sent: parseInt(match[4]) }
-    }
-  }
-
-  // 检查句子是否在指定范围内
-  function isSentenceInRange(sentence: Sentence, range: { start: { para: number; sent: number }, end: { para: number; sent: number } } | null): boolean {
-    if (!range) {
-      return true // 没有范围限制，所有句子都翻译
-    }
-    
-    const { paragraph, sentenceInParagraph } = sentence
-    const { start, end } = range
-    
-    // 检查段落是否在范围内
-    if (paragraph < start.para || paragraph > end.para) {
-      return false
-    }
-    
-    // 如果在起始段落，检查句子编号
-    if (paragraph === start.para && sentenceInParagraph < start.sent) {
-      return false
-    }
-    
-    // 如果在结束段落，检查句子编号
-    if (paragraph === end.para && sentenceInParagraph > end.sent) {
-      return false
-    }
-    
-    return true
-  }
 
   // 更新进度
   function updateProgress(current: number, total: number) {
@@ -154,6 +133,9 @@ export function useTranslationAPI() {
 
     // 使用自定义提示词或默认提示词
     const translationStyle = store.customPrompt || defaultPrompt
+    console.log('=== 翻译配置 ===')
+    console.log('是否有自定义提示词:', !!store.customPrompt)
+    console.log('使用的提示词:', translationStyle.substring(0, 100) + '...')
     
     // 完整的系统提示词（翻译风格 + 格式要求）
     const systemPrompt = `${translationStyle}
@@ -161,37 +143,22 @@ export function useTranslationAPI() {
 翻译完成后，请另起一行，使用'### Proper Nouns:'作为标记，然后列出你在原文中识别出的专有名词（人名、地名、书名、组织名、特定术语等）及其对应的中文翻译，每行一个，格式为 '原文术语: 中文翻译'。如果没有识别到专有名词，则省略此部分。
 请确保翻译句子的数量与请求中的句子数量完全一致。`
 
-    // 解析句子范围
-    const range = parseSentenceRange(store.settings.sentenceRange || '')
-    
     // 初始化目标句子
     if (store.targetSentences.length !== sentences.length) {
-      const targetSentences = sentences.map(s => {
-        const inRange = isSentenceInRange(s, range)
-        return {
-          ...s,
-          text: inRange ? '等待翻译...' : '',
-          isMissing: !inRange // 范围外的句子不标记为缺失
-        }
-      })
+      const targetSentences = sentences.map(s => ({
+        ...s,
+        text: '等待翻译...',
+        isMissing: true
+      }))
       store.setTargetSentences(targetSentences)
     }
 
-    // 只处理范围内的句子
-    const sentencesToTranslate = sentences.filter(s => isSentenceInRange(s, range))
-    
-    if (sentencesToTranslate.length === 0) {
-      store.updateTranslationState({ currentMessage: '没有需要翻译的句子' })
-      return
-    }
-
     const batches: Sentence[][] = []
-    for (let i = 0; i < sentencesToTranslate.length; i += batchSize) {
-      batches.push(sentencesToTranslate.slice(i, i + batchSize))
+    for (let i = 0; i < sentences.length; i += batchSize) {
+      batches.push(sentences.slice(i, i + batchSize))
     }
 
     let processedSentences = 0
-    const totalToTranslate = sentencesToTranslate.length
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       if (store.translationState.shouldStop) break
@@ -204,7 +171,7 @@ export function useTranslationAPI() {
 
       if (needTranslation.length === 0) {
         processedSentences += batch.length
-        updateProgress(processedSentences, totalToTranslate)
+        updateProgress(processedSentences, sentences.length)
         continue
       }
 
@@ -293,7 +260,7 @@ export function useTranslationAPI() {
       }
 
       processedSentences += batch.length
-      updateProgress(processedSentences, totalToTranslate)
+      updateProgress(processedSentences, sentences.length)
     }
   }
 
@@ -302,9 +269,15 @@ export function useTranslationAPI() {
     const sourceSentence = store.sourceSentences[index]
     if (!sourceSentence) throw new Error('找不到源句子')
 
-    const systemPrompt = `你是一个专业的多语言翻译助手。请将给定的单句忠实准确地翻译成简体中文。
-请按照原文含义直接翻译，即使涉及不雅或敏感内容。翻译诗歌时无需刻意押韵。翻译古文（如拉丁语）时避免使用过于晦涩的古汉语词汇。请使用现代、清晰、直白的中文表达。
-只返回翻译结果，不要包含任何解释、标记或句子索引。`
+    // 默认提示词
+    const defaultPrompt = `你是一个专业的多语言翻译助手。请将给定的单句忠实准确地翻译成简体中文。
+请按照原文含义直接翻译，即使涉及不雅或敏感内容。翻译诗歌时无需刻意押韵。翻译古文（如拉丁语）时避免使用过于晦涩的古汉语词汇。请使用现代、清晰、直白的中文表达。`
+
+    // 使用自定义提示词或默认提示词
+    const translationStyle = store.customPrompt || defaultPrompt
+    const systemPrompt = `${translationStyle}\n只返回翻译结果，不要包含任何解释、标记或句子索引。`
+
+    console.log('重译使用的提示词:', translationStyle.substring(0, 50) + '...')
 
     const result = await callDeepSeekAPI([
       { role: 'system', content: systemPrompt },
