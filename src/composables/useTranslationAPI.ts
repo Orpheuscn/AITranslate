@@ -105,9 +105,17 @@ export function useTranslationAPI() {
     const systemPrompt = `${styleInstruction}格式要求：
 1. 请严格按照原始句子的顺序返回翻译结果
 2. 保留每句前面的[数字]索引标记（例如：[1] 这是第一句的翻译）
-3. 翻译完成后，另起一行，使用'### Proper Nouns:'作为标记
-4. 列出专有名词（人名、地名、书名、术语等），及其词对词的翻译，不要在此提供注解，格式: '原文术语: 中文翻译'
-5. 确保翻译句子的数量与请求中的句子数量完全一致`
+3. 翻译完成后，另起一行，使用'### Proper Nouns JSON:'作为标记
+4. 在标记后的下一行，以JSON格式列出专有名词（人名、地名、书名、术语等），格式为：{"原文术语1": "中文翻译1", "原文术语2": "中文翻译2"}
+5. JSON中只包含术语的词对词翻译，不要添加任何注解或说明
+6. 确保翻译句子的数量与请求中的句子数量完全一致
+
+示例格式：
+[1] 第一句的翻译
+[2] 第二句的翻译
+
+### Proper Nouns JSON:
+{"Alice": "爱丽丝", "Wonderland": "仙境"}`
 
     // 初始化目标句子
     if (store.targetSentences.length !== sentences.length) {
@@ -171,7 +179,7 @@ export function useTranslationAPI() {
         // 分离翻译和专有名词
         let translationPart = result
         let properNounPart = ""
-        const separator = '### Proper Nouns:'
+        const separator = '### Proper Nouns JSON:'
         const separatorIndex = result.indexOf(separator)
 
         if (separatorIndex !== -1) {
