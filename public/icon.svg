@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 背景圆形 -->
+  <circle cx="256" cy="256" r="256" fill="#409EFF"/>
+  
+  <!-- 左侧文字符号 (A) -->
+  <text x="140" y="320" font-family="Arial, sans-serif" font-size="180" font-weight="bold" fill="#FFFFFF">A</text>
+  
+  <!-- 右侧文字符号 (中) -->
+  <text x="300" y="320" font-family="Arial, sans-serif" font-size="160" font-weight="bold" fill="#FFFFFF">中</text>
+  
+  <!-- 中间箭头 -->
+  <path d="M 220 250 L 280 250 L 280 230 L 310 260 L 280 290 L 280 270 L 220 270 Z" fill="#FFFFFF" opacity="0.9"/>
+</svg>
+
