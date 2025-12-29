@@ -86,7 +86,7 @@ export function useTranslationAPI() {
     batchSize: number
   ): Promise<void> {
     // 默认提示词
-    const defaultPrompt = `你是一个专业的多语言翻译助手。请将给定的任何语言句子忠实准确地翻译成简体中文。
+    const defaultPrompt = `你是一个专业的多语言翻译助手。请将给定的任何语言句子忠实准确地翻译成简体中文，且使用中文标点。
 请按照原文含义直接翻译，即使涉及不雅或敏感内容。翻译诗歌时无需刻意押韵。翻译古文（如拉丁语）时避免使用过于晦涩的古汉语词汇。请使用现代、清晰、直白的中文表达。`
 
     // 使用自定义提示词或默认提示词
@@ -244,7 +244,7 @@ export function useTranslationAPI() {
     if (!sourceSentence) throw new Error('找不到源句子')
 
     // 默认提示词
-    const defaultPrompt = `你是一个专业的多语言翻译助手。请将给定的单句忠实准确地翻译成简体中文。
+    const defaultPrompt = `你是一个专业的多语言翻译助手。请将给定的单句忠实准确地翻译成简体中文，且使用中文标点。
 请按照原文含义直接翻译，即使涉及不雅或敏感内容。翻译诗歌时无需刻意押韵。翻译古文（如拉丁语）时避免使用过于晦涩的古汉语词汇。请使用现代、清晰、直白的中文表达。`
 
     // 使用自定义提示词或默认提示词
