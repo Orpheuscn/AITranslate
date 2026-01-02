@@ -327,8 +327,8 @@ function cancelEdit() {
 
 /* 术语高亮样式 - 亮色模式 */
 .sentence-text :deep(.term-highlight) {
-  background-color: #B4E7CE;
-  color: #1a5a3a;
+  background-color: #E6D5F5;
+  color: #4A1D7E;
   padding: 2px 4px;
   border-radius: 3px;
   font-weight: 500;
@@ -336,18 +336,18 @@ function cancelEdit() {
 }
 
 .sentence-text :deep(.term-highlight:hover) {
-  background-color: #9dd9bb;
+  background-color: #D4BEF0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 /* 术语高亮样式 - 暗色模式 */
 html.dark .sentence-text :deep(.term-highlight) {
-  background-color: #2a5a4a;
-  color: #a0e7c4;
+  background-color: #4A2D5E;
+  color: #D4BEF0;
 }
 
 html.dark .sentence-text :deep(.term-highlight:hover) {
-  background-color: #356b58;
+  background-color: #5A3D6E;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
